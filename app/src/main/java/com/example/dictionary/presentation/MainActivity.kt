@@ -10,18 +10,22 @@ import androidx.compose.material.Surface
 import androidx.compose.ui.Modifier
 import com.example.dictionary.R
 import com.example.dictionary.presentation.feature.home.HomeScreen
+import com.example.dictionary.presentation.feature.home.HomeViewModel
 import com.raihanarman.dictionaryapp.ui.theme.DictionaryAppTheme
+import org.koin.androidx.viewmodel.ext.android.getViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val viewModel = getViewModel<HomeViewModel>()
         setContent {
             DictionaryAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ){
-                    HomeScreen()
+                    HomeScreen(viewModel)
                 }
             }
         }

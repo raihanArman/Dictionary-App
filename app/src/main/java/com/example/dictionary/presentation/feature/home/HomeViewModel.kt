@@ -1,5 +1,7 @@
 package com.example.dictionary.presentation.feature.home
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -7,6 +9,12 @@ import com.example.animequotes.base.wrapper.ViewResource
 import com.example.dictionary.base.arch.BaseViewModel
 import com.example.dictionary.domain.usecase.GetWordInfoUseCase
 import com.example.dictionary.domain.viewparams.WordInfo
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 /**
@@ -17,17 +25,64 @@ class HomeViewModel(
     private val getWordInfoUseCase: GetWordInfoUseCase
 ): BaseViewModel() {
 
-    val observeWordInfo: LiveData<ViewResource<MutableList<WordInfo>>>
-        get() = _observeWordInfo
-    private val _observeWordInfo = MutableLiveData<ViewResource<MutableList<WordInfo>>>()
+    private val _searchQuery = mutableStateOf("")
+    val searchQuery: State<String> = _searchQuery
 
-    fun getWordInfo(word: String){
-        viewModelScope.launch {
-            getWordInfoUseCase(GetWordInfoUseCase.Param(word))
-                .collect{
-                    _observeWordInfo.value = it
-                }
+    private val _state = mutableStateOf(HomeState())
+    val state: State<HomeState> = _state
+
+    private val _eventFlow = MutableSharedFlow<UIEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
+    private var searchJob: Job? = null
+
+    fun onSearch(query: String){
+        _searchQuery.value = query
+        if(query.isNotEmpty()) {
+            _state.value = state.value.copy(
+                isLoading = true
+            )
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch {
+                delay(500)
+                getWordInfoUseCase(GetWordInfoUseCase.Param(query))
+                    .onEach { result ->
+                        when (result) {
+                            is ViewResource.Success -> {
+                                _state.value = state.value.copy(
+                                    wordInfoItems = result.data ?: emptyList(),
+                                    isLoading = false
+                                )
+                            }
+                            is ViewResource.Error -> {
+                                _state.value = state.value.copy(
+                                    wordInfoItems = result.data ?: emptyList(),
+                                    isLoading = false
+                                )
+                                _eventFlow.emit(
+                                    UIEvent.ShowSnackbar(
+                                        result.message ?: "Unknown error"
+                                    )
+                                )
+                            }
+                            is ViewResource.Loading -> {
+                                _state.value = state.value.copy(
+                                    wordInfoItems = result.data ?: emptyList(),
+                                    isLoading = true
+                                )
+                            }
+                        }
+                    }.launchIn(this)
+            }
+        }else{
+            _state.value = state.value.copy(
+                isLoading = false
+            )
         }
+    }
+
+    sealed class UIEvent{
+        data class ShowSnackbar(val message: String): UIEvent()
     }
 
 }
