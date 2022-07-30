@@ -9,5 +9,6 @@ import com.example.dictionary.domain.viewparams.WordInfo
 
 data class HomeState(
     val wordInfoItems: List<WordInfo> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
 )

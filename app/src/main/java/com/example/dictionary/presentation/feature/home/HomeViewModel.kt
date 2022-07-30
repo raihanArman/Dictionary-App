@@ -45,34 +45,7 @@ class HomeViewModel(
             searchJob?.cancel()
             searchJob = viewModelScope.launch {
                 delay(500)
-                getWordInfoUseCase(GetWordInfoUseCase.Param(query))
-                    .onEach { result ->
-                        when (result) {
-                            is ViewResource.Success -> {
-                                _state.value = state.value.copy(
-                                    wordInfoItems = result.data ?: emptyList(),
-                                    isLoading = false
-                                )
-                            }
-                            is ViewResource.Error -> {
-                                _state.value = state.value.copy(
-                                    wordInfoItems = result.data ?: emptyList(),
-                                    isLoading = false
-                                )
-                                _eventFlow.emit(
-                                    UIEvent.ShowSnackbar(
-                                        result.message ?: "Unknown error"
-                                    )
-                                )
-                            }
-                            is ViewResource.Loading -> {
-                                _state.value = state.value.copy(
-                                    wordInfoItems = result.data ?: emptyList(),
-                                    isLoading = true
-                                )
-                            }
-                        }
-                    }.launchIn(this)
+                getWord(query)
             }
         }else{
             _state.value = state.value.copy(
@@ -80,6 +53,41 @@ class HomeViewModel(
             )
         }
     }
+
+    fun getWord(query: String){
+        launch {
+            getWordInfoUseCase(GetWordInfoUseCase.Param(query))
+                .collect { result ->
+                    when (result) {
+                        is ViewResource.Success -> {
+                            _state.value = state.value.copy(
+                                wordInfoItems = result.data ?: emptyList(),
+                                isLoading = false
+                            )
+                        }
+                        is ViewResource.Error -> {
+                            _state.value = state.value.copy(
+                                wordInfoItems = result.data ?: emptyList(),
+                                isLoading = false,
+                                errorMessage = result.message
+                            )
+                            _eventFlow.emit(
+                                UIEvent.ShowSnackbar(
+                                    result.message ?: "Unknown error"
+                                )
+                            )
+                        }
+                        is ViewResource.Loading -> {
+                            _state.value = state.value.copy(
+                                wordInfoItems = result.data ?: emptyList(),
+                                isLoading = true
+                            )
+                        }
+                    }
+                }
+        }
+    }
+
 
     sealed class UIEvent{
         data class ShowSnackbar(val message: String): UIEvent()
